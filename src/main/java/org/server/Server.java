@@ -4,39 +4,24 @@
    ---------------------------------------------------------- */
 package org.server;
 
-import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.InterruptedIOException;
-import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.StringTokenizer;
 
-import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.Timer;
 
-public class Server extends JFrame implements ActionListener
+public class Server implements ActionListener
 {
-	private static final long serialVersionUID = 5211838473915680157L;
-
-	/*----------------------------------------------------------------
-	 * UI-related variables
-	 * ---------------------------------------------------------------*/
-	JLabel label;
-
 	/*----------------------------------------------------------------
 	 * Video stream -related variables
 	 * ---------------------------------------------------------------*/
@@ -115,9 +100,6 @@ public class Server extends JFrame implements ActionListener
 	 * ----------------------------------------------------------------*/
 	public Server()
 	{
-		// initialize frame, TODO: replace with JavaFX
-		super("Server");
-
 		// initialize RTP sending Timer
 		sendDelay = FRAME_PERIOD;
 		sendTimer = new Timer(sendDelay, this);
@@ -130,132 +112,35 @@ public class Server extends JFrame implements ActionListener
 		// allocate memory for sending image buffer
 		sendImageBuffer = new byte[20000];
 
-		// main window handler (close)
-		addWindowListener(new WindowAdapter() {
-			@Override
-			public void windowClosing(WindowEvent e)
-			{
-				// stop the timer and exit (refactor to use FxTimer instead)
-				sendTimer.stop();
-				rtcpReceiver.stopRcv();
-				System.exit(0);
-			}
-		});
-
 		// initialize RTCP packet receiver
 		rtcpReceiver = new RtcpReceiver(RTCP_PERIOD);
 
-		// GUI
-		label = new JLabel("Send frame #		", JLabel.CENTER);
-		getContentPane().add(label, BorderLayout.CENTER);
-
 		// Video encoding and quality
 		imageEncoder = new ImageEncoder(0.8f);
-	}
-
-	/**----------------------------------------------------------------
-	 * Executor.
-	 * ----------------------------------------------------------------*/
-	public static void main(String argv[]) throws Exception
-	{
-		// create a Server object
-		Server theServer = new Server();
-
-		// show GUI:
-		theServer.pack();
-		theServer.setVisible(true);
-
-		// Initiate TCP connection with the client
-		ServerSocket listenSocket = new ServerSocket(theServer.rtspDestPort);
-		theServer.rtspSocket = listenSocket.accept();
-		listenSocket.close();
-
-		// Get Client IP address
-		theServer.clientIp = theServer.rtspSocket.getInetAddress();
-
-		// Initiate RTSPstate
-		state = INIT;
-
-		//Set input and output stream filters:
-		rtspBufferedReader = new BufferedReader(new InputStreamReader(theServer.rtspSocket.getInputStream()) );
-		rtspBufferedWriter = new BufferedWriter(new OutputStreamWriter(theServer.rtspSocket.getOutputStream()) );
-
-		/* Setup RTSP communication (blocking) by parsing and interpreting client's request.
-		 * When "SETUP" is received, update connection state, send confirmation message,
-		 * initialize video stream, as well as RTP and RTCP sockets */
-		int requestType;
-		boolean done = false;
-		while(!done)
-		{
-			requestType = theServer.parseRtspRequest(); //blocking
-			if (requestType == SETUP)
-			{
-				done = true;
-				state = READY;
-				System.out.println("New RTSP state: READY");
-
-				theServer.sendRtspResponse();
-				theServer.videoStream = new VideoStream(videoFileName);
-				theServer.rtpSocket = new DatagramSocket();
-				theServer.rtcpSocket = new DatagramSocket(RTCP_RCV_PORT);
-			}
-		}
-
-		/* Loop to handle RTSP requests once the setup is complete. */
-		while(true)
-		{
-			requestType = theServer.parseRtspRequest(); //blocking
-			if ((requestType == PLAY) && (state == READY))
-			{
-				theServer.sendRtspResponse();
-				theServer.sendTimer.start();
-				theServer.rtcpReceiver.startRcv();
-				state = PLAYING;
-				System.out.println("New RTSP state: PLAYING");
-			}
-			else if ((requestType == PAUSE) && (state == PLAYING))
-			{
-				theServer.sendRtspResponse();
-				theServer.sendTimer.stop();
-				theServer.rtcpReceiver.stopRcv();
-				state = READY;
-				System.out.println("New RTSP state: READY");
-			}
-			else if (requestType == TEARDOWN)
-			{
-				theServer.sendRtspResponse();
-				theServer.sendTimer.stop();
-				theServer.rtcpReceiver.stopRcv();
-				theServer.rtspSocket.close();
-				theServer.rtpSocket.close();
-				System.exit(0);
-			}
-			else if (requestType == DESCRIBE)
-			{
-				System.out.println("Received DESCRIBE request");
-				theServer.sendRtspDescribe();
-			}
-		}
 	}
 
 	//------------------------
 	// Handler for timer
 	//------------------------
 	@Override
-	public void actionPerformed(ActionEvent e) {
+	public void actionPerformed(ActionEvent e)
+	{
 		byte[] frame;
 
 		//if the current image nb is less than the length of the video
-		if (imageCounter < VIDEO_LENGTH) {
+		if (imageCounter < VIDEO_LENGTH)
+		{
 			//update current imagenb
 			imageCounter++;
 
-			try {
+			try
+			{
 				//get next frame to send from the video, as well as its size
 				int image_length = videoStream.getNextFrame(sendImageBuffer);
 
 				//adjust quality of the image if there is congestion detected
-				if (congestionLevel > 0) {
+				if (congestionLevel > 0)
+				{
 					imageEncoder.setCompressionQuality(1.0f - (congestionLevel * 0.2f));
 					frame = imageEncoder.compress(Arrays.copyOfRange(sendImageBuffer, 0, image_length));
 					image_length = frame.length;
@@ -279,16 +164,15 @@ public class Server extends JFrame implements ActionListener
 				System.out.println("Send frame #" + imageCounter + ", Frame size: " + image_length + " (" + sendImageBuffer.length + ")");
 				//print the header bitstream
 				rtp_packet.printheader();
-
-				//update GUI
-				label.setText("Send frame #" + imageCounter);
 			}
-			catch(Exception ex) {
-				System.out.println("Exception caught: "+ex);
+			catch(Exception ex)
+			{
+				System.out.println("Exception caught: " + ex);
 				System.exit(0);
 			}
 		}
-		else {
+		else
+		{
 			//if we have reached the end of the video file, stop the timer
 			sendTimer.stop();
 			rtcpReceiver.stopRcv();
@@ -334,7 +218,8 @@ public class Server extends JFrame implements ActionListener
 		private byte[] rtcpBuffer;
 		int interval;
 
-		public RtcpReceiver(int interval) {
+		public RtcpReceiver(int interval)
+		{
 			//set timer with interval for receiving packets
 			this.interval = interval;
 			rtcpTimer = new Timer(interval, this);
@@ -346,12 +231,14 @@ public class Server extends JFrame implements ActionListener
 		}
 
 		@Override
-		public void actionPerformed(ActionEvent e) {
+		public void actionPerformed(ActionEvent e)
+		{
 			//Construct a DatagramPacket to receive data from the UDP socket
 			DatagramPacket dp = new DatagramPacket(rtcpBuffer, rtcpBuffer.length);
 			float fractionLost;
 
-			try {
+			try
+			{
 				rtcpSocket.receive(dp);   // Blocking
 				RtcpPacket rtcpPkt = new RtcpPacket(dp.getData(), dp.getLength());
 				System.out.println("[RTCP] " + rtcpPkt);
@@ -374,10 +261,12 @@ public class Server extends JFrame implements ActionListener
 					congestionLevel = 4;
 				}
 			}
-			catch (InterruptedIOException iioe) {
+			catch (InterruptedIOException iioe)
+			{
 				System.out.println("Nothing to read");
 			}
-			catch (IOException ioe) {
+			catch (IOException ioe)
+			{
 				System.out.println("Exception caught: "+ioe);
 			}
 		}
@@ -392,12 +281,13 @@ public class Server extends JFrame implements ActionListener
 	}
 
 	//------------------------------------
-	//Parse RTSP Request
+	// Parse RTSP Request
 	//------------------------------------
-	private int parseRtspRequest()
+	public int parseRtspRequest()
 	{
 		int request_type = -1;
-		try {
+		try
+		{
 			//parse request line and extract the request_type:
 			String RequestLine = rtspBufferedReader.readLine();
 			System.out.println("RTSP Server - Received from Client:");
@@ -443,7 +333,6 @@ public class Server extends JFrame implements ActionListener
 			}
 			else if (request_type == DESCRIBE) {
 				tokens.nextToken();
-				String describeDataType = tokens.nextToken();
 			}
 			else {
 				//otherwise LastLine will be the SessionId line
@@ -459,7 +348,8 @@ public class Server extends JFrame implements ActionListener
 	}
 
 	// Creates a DESCRIBE response string in SDP format for current media
-	private String describe() {
+	public String describe()
+	{
 		StringWriter writer1 = new StringWriter();
 		StringWriter writer2 = new StringWriter();
 
@@ -481,28 +371,36 @@ public class Server extends JFrame implements ActionListener
 	//------------------------------------
 	//Send RTSP Response
 	//------------------------------------
-	private void sendRtspResponse() {
-		try {
+	void sendRtspResponse()
+	{
+		try
+		{
 			rtspBufferedWriter.write("RTSP/1.0 200 OK" + CRLF);
 			rtspBufferedWriter.write("CSeq: " + rtspSeqNum + CRLF);
 			rtspBufferedWriter.write("Session: " + RTSP_ID + CRLF);
 			rtspBufferedWriter.flush();
 			System.out.println("RTSP Server - Sent response to Client.");
-		} catch(Exception ex) {
+		}
+		catch(Exception ex)
+		{
 			System.out.println("Exception caught: " + ex);
 			System.exit(0);
 		}
 	}
 
-	private void sendRtspDescribe() {
+	void sendRtspDescribe()
+	{
 		String des = describe();
-		try {
+		try
+		{
 			rtspBufferedWriter.write("RTSP/1.0 200 OK"+CRLF);
 			rtspBufferedWriter.write("CSeq: "+rtspSeqNum+CRLF);
 			rtspBufferedWriter.write(des);
 			rtspBufferedWriter.flush();
 			System.out.println("RTSP Server - Sent response to Client.");
-		} catch(Exception ex) {
+		}
+		catch(Exception ex)
+		{
 			System.out.println("Exception caught: "+ex);
 			System.exit(0);
 		}
