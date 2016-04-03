@@ -30,8 +30,7 @@ public class MainApp extends Application
 	@Override
 	public void start(Stage primaryStage) throws Exception
 	{
-		CommunicationServiceImpl service = new CommunicationServiceImpl(new Server());
-		Thread thread = new Thread(service);
+		CommunicationService service = new CommunicationService(new Server());
 
         primaryStage.setTitle("Stream Server");
         Button closeButton = new Button();
@@ -42,7 +41,7 @@ public class MainApp extends Application
             @Override
             public void handle(ActionEvent event) {
                 System.out.println("Stopping stream server");
-                service.stop();
+                service.cancel();
                 stop(primaryStage);
             }
         });
@@ -58,7 +57,7 @@ public class MainApp extends Application
         primaryStage.setScene(new Scene(root, 200, 150));
         primaryStage.show();
 
-        thread.start();
+        service.start();
 	}
 
 	/**----------------------------------------------------------------

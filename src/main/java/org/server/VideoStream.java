@@ -2,38 +2,37 @@ package org.server;
 
 import java.io.FileInputStream;
 
-public class VideoStream {
-
-	FileInputStream fis; //video file
-	int frame_nb; //current frame nb
+public class VideoStream
+{
+	FileInputStream fis;	//video file
+	int frameNumber;		//current frame nb
 
 	//-----------------------------------
-	//constructor
+	// constructor
 	//-----------------------------------
-	public VideoStream(String filename) throws Exception{
-
-		//init variables
+	public VideoStream(String filename) throws Exception
+	{
+		// init variables
 		fis = new FileInputStream(filename);
-		frame_nb = 0;
+		frameNumber = 0;
 	}
 
 	//-----------------------------------
-	// getnextframe
-	//returns the next frame as an array of byte and the size of the frame
+	// returns the next frame as an array of byte and the size of the frame
 	//-----------------------------------
 	public int getNextFrame(byte[] frame) throws Exception
 	{
 		int length = 0;
 		String length_string;
-		byte[] frame_length = new byte[5];
+		byte[] frameLength = new byte[5];
 
 		//read current frame length
-		fis.read(frame_length,0,5);
+		fis.read(frameLength, 0, 5);
 
 		//transform frame_length to integer
-		length_string = new String(frame_length);
+		length_string = new String(frameLength);
 		length = Integer.parseInt(length_string);
 
-		return(fis.read(frame,0,length));
+		return fis.read(frame, 0, length);
 	}
 }

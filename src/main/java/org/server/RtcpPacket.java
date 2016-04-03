@@ -46,7 +46,8 @@ class RtcpPacket
 	public byte[] body;		// Bitstream of the body
 
 	// Constructor from field values
-	public RtcpPacket(float fractionLost, int cumLost, int highSeqNb) {
+	public RtcpPacket(float fractionLost, int cumLost, int highSeqNb)
+	{
 		version = 2;
 		padding = 0;
 		reportCount = 1;
@@ -78,8 +79,8 @@ class RtcpPacket
 	}
 
 	// Constructor from bit stream
-	public RtcpPacket(byte[] packet, int packet_size) {
-
+	public RtcpPacket(byte[] packet, int packet_size)
+	{
 		header = new byte[HEADER_SIZE];
 		body = new byte[BODY_SIZE];
 
@@ -102,7 +103,7 @@ class RtcpPacket
 	//--------------------------
 	//getpacket: returns the packet bitstream and its length
 	//--------------------------
-	public int getpacket(byte[] packet)
+	public int getPacket(byte[] packet)
 	{
 		//construct the packet = header + body
 		System.arraycopy(header, 0, packet, 0, HEADER_SIZE);
@@ -115,12 +116,14 @@ class RtcpPacket
 	//--------------------------
 	//getlength: return the total length of the RTCP packet
 	//--------------------------
-	public int getlength() {
+	public int getLength()
+	{
 		return (BODY_SIZE + HEADER_SIZE);
 	}
 
 	@Override
-	public String toString() {
+	public String toString()
+	{
 		return "[RTCP] Version: " + version + ", Fraction Lost: " + fractionLost
 			   + ", Cumulative Lost: " + cumLost + ", Highest Seq Num: " + highSeqNumber;
 	}
